@@ -13,14 +13,32 @@ data:
       - job_name: 'prometheus'
         static_configs:
           - targets: ['localhost:9090']
-      # Example: MinIO
+      # Example scrape targets (replace or remove)
       - job_name: 'minio'
         static_configs:
           - targets: ['minio-service.<your-namespace>.svc.cluster.local:9000']
-      # Example: Trino
       - job_name: 'trino'
         static_configs:
           - targets: ['trino-service.<your-namespace>.svc.cluster.local:8080']
+      - job_name: 'hivemetastore'
+        static_configs:
+          - targets: ['hivemetastore-service.<your-namespace>.svc.cluster.local:9083']
+
+---
+########################################
+# PROMETHEUS PVC
+########################################
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: prometheus-data
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+  storageClassName: <your-storage-class>
 
 ---
 ########################################
@@ -65,7 +83,8 @@ spec:
           configMap:
             name: prometheus-config
         - name: storage
-          emptyDir: {}
+          persistentVolumeClaim:
+            claimName: prometheus-data
 
 ---
 ########################################
@@ -101,6 +120,22 @@ spec:
     targetPort: web
   tls:
     termination: edge
+
+---
+########################################
+# GRAFANA PVC
+########################################
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: grafana-data
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+  storageClassName: <your-storage-class>
 
 ---
 ########################################
@@ -168,7 +203,8 @@ spec:
               mountPath: /var/lib/grafana
       volumes:
         - name: grafana-storage
-          emptyDir: {}
+          persistentVolumeClaim:
+            claimName: grafana-data
 
 ---
 ########################################
