@@ -226,4 +226,33 @@ spec:
 
 ---
 ########################################
-# GRAFANA
+# GRAFANA SERVICE
+########################################
+apiVersion: v1
+kind: Service
+metadata:
+  name: grafana
+spec:
+  selector:
+    app: grafana
+  ports:
+    - name: web
+      port: 3000
+      targetPort: 3000
+
+---
+########################################
+# GRAFANA ROUTE
+########################################
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: grafana
+spec:
+  to:
+    kind: Service
+    name: grafana
+  port:
+    targetPort: web
+  tls:
+    termination: edge
