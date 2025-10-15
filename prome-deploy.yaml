@@ -47,8 +47,9 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: prometheus
+  labels:
+    app: prometheus
 spec:
-  replicas: 1
   selector:
     matchLabels:
       app: prometheus
@@ -57,31 +58,37 @@ spec:
       labels:
         app: prometheus
     spec:
-      # Pod-level security context (applies to all containers)
-      securityContext:
-        runAsNonRoot: true
-        allowPrivilegeEscalation: false
-        seccompProfile:
-          type: RuntimeDefault
-        fsGroup: 0
-        supplementalGroups: [0]
       containers:
         - name: prometheus
           image: prom/prometheus:v2.54.0
-          args:
-            - "--config.file=/etc/prometheus/prometheus.yml"
-            - "--storage.tsdb.path=/prometheus"
           ports:
             - containerPort: 9090
               name: web
+          command:
+            - bash
+            - -c
+            - |
+              uid=$(id -u)
+              if ! whoami &>/dev/null; then
+                echo "prometheus:x:${uid}:0:prometheus:/prometheus:/bin/bash" >> /etc/passwd
+              fi
+              mkdir -p /prometheus && chmod -R g+rwX /prometheus
+              exec prometheus \
+                --config.file=/etc/prometheus/prometheus.yml \
+                --storage.tsdb.path=/prometheus \
+                --web.enable-lifecycle
           volumeMounts:
             - name: config
               mountPath: /etc/prometheus
             - name: data
               mountPath: /prometheus
-          securityContext:
-            runAsNonRoot: true
-            allowPrivilegeEscalation: false
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
       volumes:
         - name: config
           configMap:
@@ -160,8 +167,9 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: grafana
+  labels:
+    app: grafana
 spec:
-  replicas: 1
   selector:
     matchLabels:
       app: grafana
@@ -170,13 +178,6 @@ spec:
       labels:
         app: grafana
     spec:
-      securityContext:
-        runAsNonRoot: true
-        allowPrivilegeEscalation: false
-        seccompProfile:
-          type: RuntimeDefault
-        fsGroup: 0
-        supplementalGroups: [0]
       containers:
         - name: grafana
           image: grafana/grafana:10.4.1
@@ -198,14 +199,26 @@ spec:
               value: "true"
             - name: GF_AUTH_ANONYMOUS_ORG_ROLE
               value: "Viewer"
-            - name: GF_SECURITY_ALLOW_EMBEDDING
-              value: "true"
+          command:
+            - bash
+            - -c
+            - |
+              uid=$(id -u)
+              if ! whoami &>/dev/null; then
+                echo "grafana:x:${uid}:0:grafana:/var/lib/grafana:/bin/bash" >> /etc/passwd
+              fi
+              mkdir -p /var/lib/grafana && chmod -R g+rwX /var/lib/grafana
+              exec grafana-server --homepath=/usr/share/grafana --config=/etc/grafana/grafana.ini
           volumeMounts:
             - name: grafana-storage
               mountPath: /var/lib/grafana
-          securityContext:
-            runAsNonRoot: true
-            allowPrivilegeEscalation: false
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
       volumes:
         - name: grafana-storage
           persistentVolumeClaim:
@@ -213,33 +226,4 @@ spec:
 
 ---
 ########################################
-# GRAFANA SERVICE
-########################################
-apiVersion: v1
-kind: Service
-metadata:
-  name: grafana
-spec:
-  selector:
-    app: grafana
-  ports:
-    - name: web
-      port: 3000
-      targetPort: 3000
-
----
-########################################
-# GRAFANA ROUTE
-########################################
-apiVersion: route.openshift.io/v1
-kind: Route
-metadata:
-  name: grafana
-spec:
-  to:
-    kind: Service
-    name: grafana
-  port:
-    targetPort: web
-  tls:
-    termination: edge
+# GRAFANA
