@@ -47,8 +47,6 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: prometheus
-  labels:
-    app: prometheus
 spec:
   replicas: 1
   selector:
@@ -59,41 +57,36 @@ spec:
       labels:
         app: prometheus
     spec:
+      # Pod-level security context (applies to all containers)
       securityContext:
         runAsNonRoot: true
         allowPrivilegeEscalation: false
         seccompProfile:
           type: RuntimeDefault
+        fsGroup: 0
+        supplementalGroups: [0]
       containers:
         - name: prometheus
           image: prom/prometheus:v2.54.0
           args:
             - "--config.file=/etc/prometheus/prometheus.yml"
             - "--storage.tsdb.path=/prometheus"
-            - "--web.enable-lifecycle"
           ports:
             - containerPort: 9090
               name: web
+          volumeMounts:
+            - name: config
+              mountPath: /etc/prometheus
+            - name: data
+              mountPath: /prometheus
           securityContext:
             runAsNonRoot: true
             allowPrivilegeEscalation: false
-          volumeMounts:
-            - name: config
-              mountPath: /etc/prometheus/
-            - name: storage
-              mountPath: /prometheus
-          resources:
-            requests:
-              cpu: 100m
-              memory: 256Mi
-            limits:
-              cpu: 500m
-              memory: 512Mi
       volumes:
         - name: config
           configMap:
             name: prometheus-config
-        - name: storage
+        - name: data
           persistentVolumeClaim:
             claimName: prometheus-data
 
@@ -105,8 +98,6 @@ apiVersion: v1
 kind: Service
 metadata:
   name: prometheus
-  labels:
-    app: prometheus
 spec:
   selector:
     app: prometheus
@@ -169,8 +160,6 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: grafana
-  labels:
-    app: grafana
 spec:
   replicas: 1
   selector:
@@ -186,6 +175,8 @@ spec:
         allowPrivilegeEscalation: false
         seccompProfile:
           type: RuntimeDefault
+        fsGroup: 0
+        supplementalGroups: [0]
       containers:
         - name: grafana
           image: grafana/grafana:10.4.1
@@ -209,21 +200,12 @@ spec:
               value: "Viewer"
             - name: GF_SECURITY_ALLOW_EMBEDDING
               value: "true"
-            - name: GF_INSTALL_PLUGINS
-              value: "grafana-piechart-panel"
           volumeMounts:
             - name: grafana-storage
               mountPath: /var/lib/grafana
           securityContext:
             runAsNonRoot: true
             allowPrivilegeEscalation: false
-          resources:
-            requests:
-              cpu: 100m
-              memory: 256Mi
-            limits:
-              cpu: 500m
-              memory: 512Mi
       volumes:
         - name: grafana-storage
           persistentVolumeClaim:
@@ -237,8 +219,6 @@ apiVersion: v1
 kind: Service
 metadata:
   name: grafana
-  labels:
-    app: grafana
 spec:
   selector:
     app: grafana
