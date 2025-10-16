@@ -1,5 +1,4 @@
 metastore:
-  # --- Enable JMX inside Hive Metastore JVM ---
   extraEnvVars: |
     - name: HADOOP_OPTS
       value: >
@@ -9,8 +8,6 @@ metastore:
         -Dcom.sun.management.jmxremote.authenticate=false
         -Dcom.sun.management.jmxremote.ssl=false
         -Djava.rmi.server.hostname=127.0.0.1
-
-  # --- Add JMX Exporter Sidecar for Prometheus ---
   extraContainers: |
     - name: jmx-exporter
       image: bitnami/jmx-exporter:0.20.0
@@ -22,8 +19,6 @@ metastore:
       volumeMounts:
         - name: jmx-config
           mountPath: /config
-
-  # --- Mount the JMX ConfigMap created separately ---
   extraVolumes: |
     - name: jmx-config
       configMap:
