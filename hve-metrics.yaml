@@ -1,0 +1,52 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: hive-jmx-config
+  namespace: dap
+  labels:
+    app: hive-metastore
+data:
+  config.yml: |
+    startDelaySeconds: 0
+    jmxUrl: service:jmx:rmi:///jndi/rmi://127.0.0.1:9010/jmxrmi
+    lowercaseOutputName: true
+    lowercaseOutputLabelNames: true
+    rules:
+      - pattern: ".*"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: hive-metastore-metrics
+  namespace: dap
+  labels:
+    app: hive-metastore
+spec:
+  selector:
+    app: hive-metastore
+  ports:
+    - name: metrics
+      port: 9404
+      targetPort: 9404
+  type: ClusterIP
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: hive-metastore-smon
+  namespace: dap
+  labels:
+    release: prometheus
+    app: hive-metastore
+spec:
+  selector:
+    matchLabels:
+      app: hive-metastore
+  endpoints:
+    - port: metrics
+      path: /
+      interval: 30s
+  namespaceSelector:
+    matchNames:
+      - dap
