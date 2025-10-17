@@ -1,0 +1,23 @@
+startDelaySeconds: 0
+lowercaseOutputName: true
+lowercaseOutputLabelNames: true
+rules:
+  # JVM
+  - pattern: 'java.lang<type=Memory><>(HeapMemoryUsage|NonHeapMemoryUsage)Usage.*'
+  - pattern: 'java.lang<type=GarbageCollector,name=(.*)><>CollectionCount'
+    name: jvm_gc_collection_count
+    labels:
+      gc: "$1"
+  - pattern: 'java.lang<type=GarbageCollector,name=(.*)><>CollectionTime'
+    name: jvm_gc_collection_time_seconds
+    labels:
+      gc: "$1"
+      unit: seconds
+
+  # Trino execution metrics
+  - pattern: 'io.trino.execution<name=(.*)><>.*'
+  - pattern: 'io.trino.memory<name=(.*)><>.*'
+  - pattern: 'io.trino.<name=(.*)><>.*'
+
+  # Fallback
+  - pattern: '.*'
